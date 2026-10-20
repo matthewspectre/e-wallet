@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 
-	"e-wallet/internal/handler"
 	"e-wallet/internal/router"
 )
 
@@ -15,7 +14,7 @@ func main() {
 		port = "8080"
 	}
 
-	apiRouter := router.New(handler.New())
+	apiRouter := router.New()
 	server := &http.Server{
 		Addr:    ":" + port,
 		Handler: apiRouter,
