@@ -48,6 +48,7 @@ func (h *Handler) Create(c *gin.Context) {
 	data := &entity.User{
 		Name:         strings.TrimSpace(req.Name),
 		Email:        strings.TrimSpace(req.Email),
+		NoTelp:       strings.TrimSpace(req.NoTelp),
 		PasswordHash: string(passwordHash),
 		CreatedAt:    now,
 		UpdatedAt:    now,
@@ -62,6 +63,7 @@ func (h *Handler) Create(c *gin.Context) {
 		ID:        data.ID,
 		Name:      data.Name,
 		Email:     data.Email,
+		NoTelp:    data.NoTelp,
 		CreatedAt: data.CreatedAt,
 		UpdatedAt: data.UpdatedAt,
 	})

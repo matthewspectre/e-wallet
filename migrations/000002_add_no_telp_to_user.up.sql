@@ -1,0 +1,2 @@
+ALTER TABLE user
+    ADD COLUMN no_telp VARCHAR(20) NOT NULL DEFAULT '' AFTER email;
