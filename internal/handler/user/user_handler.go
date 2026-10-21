@@ -1,7 +1,9 @@
 package user
 
 import (
+	"context"
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,11 +18,16 @@ import (
 )
 
 type Handler struct {
-	uc usecase.Usecase
+	uc          usecase.Usecase
+	emailSender RegistrationEmailSender
 }
 
-func NewHandler(uc usecase.Usecase) *Handler {
-	return &Handler{uc: uc}
+type RegistrationEmailSender interface {
+	SendRegistrationThankYou(ctx context.Context, recipient, name string) error
+}
+
+func NewHandler(uc usecase.Usecase, emailSender RegistrationEmailSender) *Handler {
+	return &Handler{uc: uc, emailSender: emailSender}
 }
 
 func (h *Handler) Create(c *gin.Context) {
@@ -71,14 +78,35 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, UserResponse{
+	response := UserResponse{
 		ID:        data.ID,
 		Name:      data.Name,
 		Email:     data.Email,
 		NoTelp:    data.NoTelp,
 		CreatedAt: data.CreatedAt,
 		UpdatedAt: data.UpdatedAt,
-	})
+	}
+
+	if h.emailSender == nil {
+		log.Printf("registration email not sent for user %d: email sender is not configured", data.ID)
+		response.EmailNotification = &EmailNotification{
+			Status:  "failed",
+			Message: "user registered, but thank-you email could not be sent",
+		}
+	} else if err := h.emailSender.SendRegistrationThankYou(c.Request.Context(), data.Email, data.Name); err != nil {
+		log.Printf("failed to send registration email for user %d: %v", data.ID, err)
+		response.EmailNotification = &EmailNotification{
+			Status:  "failed",
+			Message: "user registered, but thank-you email could not be sent",
+		}
+	} else {
+		response.EmailNotification = &EmailNotification{
+			Status:  "accepted",
+			Message: "thank-you email accepted by Gmail",
+		}
+	}
+
+	c.JSON(http.StatusCreated, response)
 }
 
 func (h *Handler) GetByID(c *gin.Context) {

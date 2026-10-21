@@ -12,6 +12,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
+	registrationEmail "e-wallet/internal/email"
 	handlerUser "e-wallet/internal/handler/user"
 	mysqlUser "e-wallet/internal/mysql/user"
 	"e-wallet/internal/router"
@@ -58,7 +59,12 @@ func main() {
 
 	userRepo := mysqlUser.NewRepository(db)
 	userUC := usecaseUser.NewUsecase(userRepo)
-	userHTTPHandler := handlerUser.NewHandler(userUC)
+	emailFrom := strings.TrimSpace(os.Getenv("EMAIL_FROM"))
+	if emailFrom == "" {
+		emailFrom = "matthewxrplb@gmail.com"
+	}
+	emailSender := registrationEmail.NewSender(emailFrom, os.Getenv("EMAIL_APP_PASSWORD"))
+	userHTTPHandler := handlerUser.NewHandler(userUC, emailSender)
 
 	r := gin.Default()
 	r.Use(cors.Default())
