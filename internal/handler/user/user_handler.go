@@ -1,7 +1,9 @@
 package user
 
 import (
+	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -10,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 type Handler struct {
@@ -55,6 +58,14 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 
 	if err := h.uc.Create(data); err != nil {
+		if message, duplicate := duplicateMessage(err); duplicate {
+			c.JSON(http.StatusConflict, gin.H{
+				"status":  http.StatusConflict,
+				"message": message,
+			})
+			return
+		}
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -67,4 +78,76 @@ func (h *Handler) Create(c *gin.Context) {
 		CreatedAt: data.CreatedAt,
 		UpdatedAt: data.UpdatedAt,
 	})
+}
+
+func (h *Handler) GetByID(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "id must be a positive integer"})
+		return
+	}
+
+	data, err := h.uc.GetByID(id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, toUserResponse(data))
+}
+
+func (h *Handler) GetAll(c *gin.Context) {
+	users, total, err := h.uc.GetAll()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	responses := make([]UserResponse, 0, len(users))
+	for _, data := range users {
+		responses = append(responses, toUserResponse(data))
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":  responses,
+		"total": total,
+	})
+}
+
+func toUserResponse(data *entity.User) UserResponse {
+	return UserResponse{
+		ID:        data.ID,
+		Name:      data.Name,
+		Email:     data.Email,
+		NoTelp:    data.NoTelp,
+		CreatedAt: data.CreatedAt,
+		UpdatedAt: data.UpdatedAt,
+	}
+}
+
+func duplicateMessage(err error) (string, bool) {
+	errMessage := strings.ToLower(err.Error())
+	if !strings.Contains(errMessage, "duplicate entry") &&
+		!strings.Contains(errMessage, "error 1062") {
+		return "", false
+	}
+
+	emailExists := strings.Contains(errMessage, "email")
+	phoneExists := strings.Contains(errMessage, "no_telp") ||
+		strings.Contains(errMessage, "phone")
+
+	switch {
+	case emailExists && phoneExists:
+		return "email and phone number already exist", true
+	case emailExists:
+		return "email already exists", true
+	case phoneExists:
+		return "phone number already exists", true
+	default:
+		return "email or phone number already exists", true
+	}
 }
