@@ -6,7 +6,9 @@ type UserModel struct {
 	ID           int64     `gorm:"primaryKey;autoIncrement;column:id;type:bigint"`
 	Name         string    `gorm:"column:name"`
 	Email        string    `gorm:"column:email;unique"`
+	NoTelp       string    `gorm:"column:no_telp"`
 	PasswordHash string    `gorm:"column:password_hash"`
+	Visible      int       `gorm:"column:visible;default:1"`
 	CreatedAt    time.Time `gorm:"column:created_at"`
 	UpdatedAt    time.Time `gorm:"column:updated_at"`
 }
