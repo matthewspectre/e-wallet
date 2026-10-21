@@ -53,6 +53,7 @@ func (h *Handler) Create(c *gin.Context) {
 		Email:        strings.TrimSpace(req.Email),
 		NoTelp:       strings.TrimSpace(req.NoTelp),
 		PasswordHash: string(passwordHash),
+		Visible:      1,
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
@@ -116,6 +117,25 @@ func (h *Handler) GetAll(c *gin.Context) {
 		"data":  responses,
 		"total": total,
 	})
+}
+
+func (h *Handler) HideByID(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "id must be a positive integer"})
+		return
+	}
+
+	if err := h.uc.HideByID(id); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "user hidden"})
 }
 
 func toUserResponse(data *entity.User) UserResponse {

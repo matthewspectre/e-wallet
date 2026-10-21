@@ -19,4 +19,5 @@ func RegisterUserRoutes(r *gin.Engine, handler *userhandler.Handler) {
 	group.POST("/", handler.Create)
 	group.GET("/", handler.GetAll)
 	group.GET("/:id", handler.GetByID)
+	group.PATCH("/:id/hide", handler.HideByID)
 }

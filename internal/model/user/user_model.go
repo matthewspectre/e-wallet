@@ -8,6 +8,7 @@ type UserModel struct {
 	Email        string    `gorm:"column:email;unique"`
 	NoTelp       string    `gorm:"column:no_telp"`
 	PasswordHash string    `gorm:"column:password_hash"`
+	Visible      int       `gorm:"column:visible;default:1"`
 	CreatedAt    time.Time `gorm:"column:created_at"`
 	UpdatedAt    time.Time `gorm:"column:updated_at"`
 }

@@ -31,12 +31,32 @@ func (r *RepositoryMySQL) GetAll() ([]*entity.User, int64, error) {
 	var users []*entity.User
 	var total int64
 
-	if err := r.db.Table("user").Count(&total).Error; err != nil {
+	query := r.db.Table("user").Where("visible = ?", 1)
+	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	if err := r.db.Table("user").Find(&users).Error; err != nil {
+	if err := query.Find(&users).Error; err != nil {
 		return nil, 0, err
 	}
 
 	return users, total, nil
+}
+
+func (r *RepositoryMySQL) HideByID(id int64) error {
+	result := r.db.Table("user").Where("id = ?", id).Update("visible", 0)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected > 0 {
+		return nil
+	}
+
+	var count int64
+	if err := r.db.Table("user").Where("id = ?", id).Count(&count).Error; err != nil {
+		return err
+	}
+	if count == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }

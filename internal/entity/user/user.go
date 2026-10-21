@@ -8,6 +8,7 @@ type User struct {
 	Email        string
 	NoTelp       string
 	PasswordHash string
+	Visible      int
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }

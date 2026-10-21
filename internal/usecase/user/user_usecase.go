@@ -9,6 +9,7 @@ type Usecase interface {
 	Create(data *entity.User) error
 	GetByID(id int64) (*entity.User, error)
 	GetAll() ([]*entity.User, int64, error)
+	HideByID(id int64) error
 }
 
 type usecase struct {
@@ -29,4 +30,8 @@ func (u *usecase) GetByID(id int64) (*entity.User, error) {
 
 func (u *usecase) GetAll() ([]*entity.User, int64, error) {
 	return u.repo.GetAll()
+}
+
+func (u *usecase) HideByID(id int64) error {
+	return u.repo.HideByID(id)
 }
