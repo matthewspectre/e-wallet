@@ -5,6 +5,7 @@ go 1.22
 require (
 	github.com/gin-contrib/cors v1.7.3
 	github.com/gin-gonic/gin v1.10.1
+	github.com/midtrans/midtrans-go v1.3.8
 	golang.org/x/crypto v0.31.0
 	gorm.io/driver/mysql v1.5.7
 	gorm.io/gorm v1.31.2

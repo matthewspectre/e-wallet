@@ -15,6 +15,7 @@ import (
 	registrationEmail "e-wallet/internal/email"
 	handlerUser "e-wallet/internal/handler/user"
 	handlerWallet "e-wallet/internal/handler/wallet"
+	"e-wallet/internal/midtrans"
 	mysqlUser "e-wallet/internal/mysql/user"
 	mysqlWallet "e-wallet/internal/mysql/wallet"
 	"e-wallet/internal/router"
@@ -70,7 +71,8 @@ func main() {
 	userHTTPHandler := handlerUser.NewHandler(userUC, emailSender)
 
 	walletRepo := mysqlWallet.NewRepository(db)
-	walletUC := usecaseWallet.NewUsecase(walletRepo)
+	midtransClient := midtrans.NewClient(os.Getenv("MIDTRANS_SERVER_KEY"))
+	walletUC := usecaseWallet.NewUsecase(walletRepo, midtransClient)
 	walletHTTPHandler := handlerWallet.NewHandler(walletUC)
 
 	r := gin.Default()
