@@ -1,0 +1,13 @@
+CREATE TABLE wallets (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    balance BIGINT NOT NULL DEFAULT 0,
+    currency VARCHAR(3) NOT NULL DEFAULT 'IDR',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY wallets_user_id_unique (user_id),
+    CONSTRAINT wallets_user_id_foreign
+        FOREIGN KEY (user_id) REFERENCES user (id)
+        ON DELETE CASCADE
+);

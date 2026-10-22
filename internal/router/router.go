@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	userhandler "e-wallet/internal/handler/user"
+	wallethandler "e-wallet/internal/handler/wallet"
 
 	"github.com/gin-gonic/gin"
 )
@@ -20,4 +21,9 @@ func RegisterUserRoutes(r *gin.Engine, handler *userhandler.Handler) {
 	group.GET("/", handler.GetAll)
 	group.GET("/:id", handler.GetByID)
 	group.PATCH("/:id/hide", handler.HideByID)
+}
+
+func RegisterWalletRoutes(r *gin.Engine, handler *wallethandler.Handler) {
+	group := r.Group("/wallets")
+	group.GET("/user/:user_id", handler.GetByUserID)
 }

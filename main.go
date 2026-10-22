@@ -14,9 +14,12 @@ import (
 
 	registrationEmail "e-wallet/internal/email"
 	handlerUser "e-wallet/internal/handler/user"
+	handlerWallet "e-wallet/internal/handler/wallet"
 	mysqlUser "e-wallet/internal/mysql/user"
+	mysqlWallet "e-wallet/internal/mysql/wallet"
 	"e-wallet/internal/router"
 	usecaseUser "e-wallet/internal/usecase/user"
+	usecaseWallet "e-wallet/internal/usecase/wallet"
 )
 
 func main() {
@@ -66,10 +69,15 @@ func main() {
 	emailSender := registrationEmail.NewSender(emailFrom, os.Getenv("EMAIL_APP_PASSWORD"))
 	userHTTPHandler := handlerUser.NewHandler(userUC, emailSender)
 
+	walletRepo := mysqlWallet.NewRepository(db)
+	walletUC := usecaseWallet.NewUsecase(walletRepo)
+	walletHTTPHandler := handlerWallet.NewHandler(walletUC)
+
 	r := gin.Default()
 	r.Use(cors.Default())
 	router.RegisterHealthRoute(r)
 	router.RegisterUserRoutes(r, userHTTPHandler)
+	router.RegisterWalletRoutes(r, walletHTTPHandler)
 
 	httpPort := strings.TrimSpace(httpPortFlag)
 	if httpPort == "" {

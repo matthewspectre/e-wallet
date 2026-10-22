@@ -1,7 +1,10 @@
 package user
 
 import (
+	"time"
+
 	entity "e-wallet/internal/entity/user"
+	walletModel "e-wallet/internal/model/wallet"
 	repo "e-wallet/internal/repository/user"
 
 	"gorm.io/gorm"
@@ -16,7 +19,21 @@ func NewRepository(db *gorm.DB) repo.Repository {
 }
 
 func (r *RepositoryMySQL) Create(data *entity.User) error {
-	return r.db.Table("user").Create(data).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Table("user").Create(data).Error; err != nil {
+			return err
+		}
+
+		now := time.Now()
+		wallet := &walletModel.WalletModel{
+			UserID:    data.ID,
+			Balance:   0,
+			Currency:  "IDR",
+			CreatedAt: now,
+			UpdatedAt: now,
+		}
+		return tx.Create(wallet).Error
+	})
 }
 
 func (r *RepositoryMySQL) GetByID(id int64) (*entity.User, error) {
