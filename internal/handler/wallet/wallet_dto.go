@@ -18,6 +18,7 @@ type TopUpCreateRequest struct {
 
 type TopUpResponse struct {
 	ID          int64     `json:"id"`
+	UserID      int64     `json:"user_id"`
 	OrderID     string    `json:"order_id"`
 	Amount      int64     `json:"amount"`
 	Currency    string    `json:"currency"`
@@ -25,6 +26,19 @@ type TopUpResponse struct {
 	SnapToken   string    `json:"snap_token"`
 	RedirectURL string    `json:"redirect_url"`
 	CreatedAt   time.Time `json:"created_at"`
+}
+
+type TopUpListItemResponse struct {
+	ID          int64     `json:"id"`
+	UserID      int64     `json:"user_id"`
+	WalletID    int64     `json:"wallet_id"`
+	OrderID     string    `json:"order_id"`
+	Amount      int64     `json:"amount"`
+	Currency    string    `json:"currency"`
+	Status      string    `json:"status"`
+	PaymentType string    `json:"payment_type"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type MidtransNotificationRequest struct {
