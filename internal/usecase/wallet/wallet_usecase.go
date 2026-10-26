@@ -28,6 +28,7 @@ type PaymentGateway interface {
 
 type Usecase interface {
 	GetByUserID(userID int64) (*entity.Wallet, error)
+	GetTopUpsByUserID(userID int64) ([]*entity.TopUp, error)
 	CreateTopUp(userID, amount int64, paymentMethod string) (*entity.TopUp, error)
 	HandleNotification(orderID, statusCode, grossAmount, signature string) error
 }
@@ -43,6 +44,13 @@ func NewUsecase(r repo.Repository, payment PaymentGateway) Usecase {
 
 func (u *usecase) GetByUserID(userID int64) (*entity.Wallet, error) {
 	return u.repo.GetByUserID(userID)
+}
+
+func (u *usecase) GetTopUpsByUserID(userID int64) ([]*entity.TopUp, error) {
+	if userID <= 0 {
+		return nil, fmt.Errorf("user ID must be positive")
+	}
+	return u.repo.GetTopUpsByUserID(userID)
 }
 
 func (u *usecase) CreateTopUp(userID, amount int64, paymentMethod string) (*entity.TopUp, error) {
@@ -69,6 +77,7 @@ func (u *usecase) CreateTopUp(userID, amount int64, paymentMethod string) (*enti
 
 	now := time.Now()
 	topUp := &entity.TopUp{
+		UserID:    userID,
 		OrderID:   orderID,
 		Amount:    amount,
 		Status:    "pending",

@@ -31,6 +31,7 @@ func RegisterAuthRoutes(r *gin.Engine, handler *authhandler.Handler) {
 func RegisterWalletRoutes(r *gin.Engine, handler *wallethandler.Handler) {
 	group := r.Group("/wallets")
 	group.GET("/user/:user_id", handler.GetByUserID)
+	group.GET("/user/:user_id/topups", handler.GetTopUpsByUserID)
 	group.POST("/user/:user_id/topups", handler.CreateTopUp)
 	r.POST("/payments/midtrans/notification", handler.MidtransNotification)
 }

@@ -41,6 +41,42 @@ func (h *Handler) GetByUserID(c *gin.Context) {
 	c.JSON(http.StatusOK, toWalletResponse(data))
 }
 
+func (h *Handler) GetTopUpsByUserID(c *gin.Context) {
+	userID, err := strconv.ParseInt(c.Param("user_id"), 10, 64)
+	if err != nil || userID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id must be a positive integer"})
+		return
+	}
+
+	topUps, err := h.uc.GetTopUpsByUserID(userID)
+	if err != nil {
+		log.Printf("failed to get top-ups for user %d: %v", userID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not get top-up history"})
+		return
+	}
+
+	responses := make([]TopUpListItemResponse, 0, len(topUps))
+	for _, topUp := range topUps {
+		responses = append(responses, TopUpListItemResponse{
+			ID:          topUp.ID,
+			UserID:      topUp.UserID,
+			WalletID:    topUp.WalletID,
+			OrderID:     topUp.OrderID,
+			Amount:      topUp.Amount,
+			Currency:    "IDR",
+			Status:      topUp.Status,
+			PaymentType: topUp.PaymentType,
+			CreatedAt:   topUp.CreatedAt,
+			UpdatedAt:   topUp.UpdatedAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":  responses,
+		"total": len(responses),
+	})
+}
+
 func (h *Handler) CreateTopUp(c *gin.Context) {
 	userID, err := strconv.ParseInt(c.Param("user_id"), 10, 64)
 	if err != nil || userID <= 0 {
@@ -75,6 +111,7 @@ func (h *Handler) CreateTopUp(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, TopUpResponse{
 		ID:          topUp.ID,
+		UserID:      topUp.UserID,
 		OrderID:     topUp.OrderID,
 		Amount:      topUp.Amount,
 		Currency:    "IDR",

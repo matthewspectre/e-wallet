@@ -9,6 +9,7 @@ import (
 
 type repositoryStub struct {
 	topUp            *entity.TopUp
+	topUps           []*entity.TopUp
 	appliedStatus    string
 	appliedPayment   string
 	getTopUpCalled   bool
@@ -17,6 +18,10 @@ type repositoryStub struct {
 
 func (r *repositoryStub) GetByUserID(int64) (*entity.Wallet, error) {
 	return nil, nil
+}
+
+func (r *repositoryStub) GetTopUpsByUserID(int64) ([]*entity.TopUp, error) {
+	return r.topUps, nil
 }
 
 func (r *repositoryStub) CreateTopUp(userID int64, data *entity.TopUp) error {
@@ -72,6 +77,9 @@ func TestCreateTopUpPersistsPendingOrderAndReturnsSnapDetails(t *testing.T) {
 	if result.ID != 10 || result.WalletID != 20 {
 		t.Errorf("unexpected persisted IDs: topup=%d wallet=%d", result.ID, result.WalletID)
 	}
+	if result.UserID != 7 {
+		t.Errorf("expected user ID 7 from endpoint input, got %d", result.UserID)
+	}
 	if result.Amount != 25000 || result.Status != "pending" {
 		t.Errorf("unexpected top-up amount/status: amount=%d status=%s", result.Amount, result.Status)
 	}
@@ -89,6 +97,27 @@ func TestCreateTopUpRejectsUnsupportedPaymentMethod(t *testing.T) {
 	_, err := usecase.CreateTopUp(7, 25000, "unknown")
 	if !errors.Is(err, ErrInvalidPaymentMethod) {
 		t.Fatalf("expected ErrInvalidPaymentMethod, got %v", err)
+	}
+}
+
+func TestGetTopUpsByUserIDReturnsRepositoryResults(t *testing.T) {
+	want := []*entity.TopUp{{ID: 1, UserID: 7, OrderID: "order-1"}}
+	usecase := NewUsecase(&repositoryStub{topUps: want}, paymentGatewayStub{})
+
+	got, err := usecase.GetTopUpsByUserID(7)
+	if err != nil {
+		t.Fatalf("GetTopUpsByUserID returned an error: %v", err)
+	}
+	if len(got) != 1 || got[0].UserID != 7 || got[0].OrderID != "order-1" {
+		t.Fatalf("unexpected top-up list: %#v", got)
+	}
+}
+
+func TestGetTopUpsByUserIDRejectsNonPositiveID(t *testing.T) {
+	usecase := NewUsecase(&repositoryStub{}, paymentGatewayStub{})
+
+	if _, err := usecase.GetTopUpsByUserID(0); err == nil {
+		t.Fatal("expected non-positive user ID to be rejected")
 	}
 }
 

@@ -4,6 +4,7 @@ import "time"
 
 type TopUp struct {
 	ID          int64
+	UserID      int64
 	WalletID    int64
 	OrderID     string
 	Amount      int64

@@ -5,6 +5,7 @@ import (
 	model "e-wallet/internal/model/wallet"
 	repo "e-wallet/internal/repository/wallet"
 	"math"
+	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -32,6 +33,51 @@ func (r *RepositoryMySQL) GetByUserID(userID int64) (*entity.Wallet, error) {
 		CreatedAt: data.CreatedAt,
 		UpdatedAt: data.UpdatedAt,
 	}, nil
+}
+
+func (r *RepositoryMySQL) GetTopUpsByUserID(userID int64) ([]*entity.TopUp, error) {
+	type topUpWithUserID struct {
+		ID          int64     `gorm:"column:id"`
+		UserID      int64     `gorm:"column:user_id"`
+		WalletID    int64     `gorm:"column:wallet_id"`
+		OrderID     string    `gorm:"column:order_id"`
+		Amount      int64     `gorm:"column:amount"`
+		Status      string    `gorm:"column:status"`
+		SnapToken   string    `gorm:"column:snap_token"`
+		RedirectURL string    `gorm:"column:redirect_url"`
+		PaymentType string    `gorm:"column:payment_type"`
+		CreatedAt   time.Time `gorm:"column:created_at"`
+		UpdatedAt   time.Time `gorm:"column:updated_at"`
+	}
+
+	var rows []topUpWithUserID
+	err := r.db.Table("wallet_topups AS wt").
+		Select("wt.id, w.user_id, wt.wallet_id, wt.order_id, wt.amount, wt.status, wt.snap_token, wt.redirect_url, wt.payment_type, wt.created_at, wt.updated_at").
+		Joins("JOIN wallets AS w ON w.id = wt.wallet_id").
+		Where("w.user_id = ?", userID).
+		Order("wt.created_at DESC, wt.id DESC").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	topUps := make([]*entity.TopUp, 0, len(rows))
+	for _, row := range rows {
+		topUps = append(topUps, &entity.TopUp{
+			ID:          row.ID,
+			UserID:      row.UserID,
+			WalletID:    row.WalletID,
+			OrderID:     row.OrderID,
+			Amount:      row.Amount,
+			Status:      row.Status,
+			SnapToken:   row.SnapToken,
+			RedirectURL: row.RedirectURL,
+			PaymentType: row.PaymentType,
+			CreatedAt:   row.CreatedAt,
+			UpdatedAt:   row.UpdatedAt,
+		})
+	}
+	return topUps, nil
 }
 
 func (r *RepositoryMySQL) CreateTopUp(userID int64, data *entity.TopUp) error {
