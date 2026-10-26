@@ -1,32 +1,25 @@
-# React + TypeScript + Vite
+# Go-Wallet Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React + TypeScript + Vite frontend for the Go-Wallet API.
 
-Currently, two official plugins are available:
+## Run locally
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+From the repository root, run the Go API. The backend listens on port `8080` by default.
 
-## React Compiler
+Run the frontend in a separate terminal:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```powershell
+cd D:\e-wallet\front-end
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Open the Vite URL, normally `http://localhost:5173`. The frontend calls `http://localhost:8080` by default. To use another API URL, create `front-end/.env.local`:
+
+```dotenv
+VITE_API_BASE_URL=http://localhost:8080
+```
+
+The login form uses the account email and password. A successful login opens `/dashboard` and greets the user. Login state is kept in browser navigation state only; refreshing the dashboard returns the user to login. This prototype does not issue a token or create a persistent authenticated session, and wallet routes are not protected.
+
+The dashboard's **Top Up** action opens `/dashboard/topup`. It loads the user's wallet balance, accepts preset or custom amounts (minimum Rp10.000), and creates a Midtrans Snap transaction through the API. The selected QRIS, virtual account, or card method is passed to Snap as the enabled payment method group. Completing a top up requires the backend's Midtrans notification URL to be publicly reachable. Top-up history is not shown yet because the API does not currently expose a history endpoint.

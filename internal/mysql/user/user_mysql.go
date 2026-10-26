@@ -44,6 +44,16 @@ func (r *RepositoryMySQL) GetByID(id int64) (*entity.User, error) {
 	return &data, nil
 }
 
+func (r *RepositoryMySQL) GetByEmail(email string) (*entity.User, error) {
+	var data entity.User
+	if err := r.db.Table("user").
+		Where("email = ? AND visible = ?", email, 1).
+		First(&data).Error; err != nil {
+		return nil, err
+	}
+	return &data, nil
+}
+
 func (r *RepositoryMySQL) GetAll() ([]*entity.User, int64, error) {
 	var users []*entity.User
 	var total int64

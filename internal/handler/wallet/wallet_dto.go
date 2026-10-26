@@ -12,7 +12,8 @@ type WalletResponse struct {
 }
 
 type TopUpCreateRequest struct {
-	Amount int64 `json:"amount" binding:"required,gt=0"`
+	Amount        int64  `json:"amount" binding:"required,gt=0"`
+	PaymentMethod string `json:"payment_method"`
 }
 
 type TopUpResponse struct {

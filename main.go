@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -13,12 +14,14 @@ import (
 	"gorm.io/gorm"
 
 	registrationEmail "e-wallet/internal/email"
+	handlerAuth "e-wallet/internal/handler/auth"
 	handlerUser "e-wallet/internal/handler/user"
 	handlerWallet "e-wallet/internal/handler/wallet"
 	"e-wallet/internal/midtrans"
 	mysqlUser "e-wallet/internal/mysql/user"
 	mysqlWallet "e-wallet/internal/mysql/wallet"
 	"e-wallet/internal/router"
+	usecaseAuth "e-wallet/internal/usecase/auth"
 	usecaseUser "e-wallet/internal/usecase/user"
 	usecaseWallet "e-wallet/internal/usecase/wallet"
 )
@@ -63,6 +66,8 @@ func main() {
 
 	userRepo := mysqlUser.NewRepository(db)
 	userUC := usecaseUser.NewUsecase(userRepo)
+	authUC := usecaseAuth.NewUsecase(userRepo)
+	authHTTPHandler := handlerAuth.NewHandler(authUC)
 	emailFrom := strings.TrimSpace(os.Getenv("EMAIL_FROM"))
 	if emailFrom == "" {
 		emailFrom = "matthewxrplb@gmail.com"
@@ -76,8 +81,21 @@ func main() {
 	walletHTTPHandler := handlerWallet.NewHandler(walletUC)
 
 	r := gin.Default()
-	r.Use(cors.Default())
+	allowedOrigins := strings.Split(os.Getenv("CORS_ALLOWED_ORIGINS"), ",")
+	if strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGINS")) == "" {
+		allowedOrigins = []string{"http://localhost:5173", "http://127.0.0.1:5173"}
+	}
+	for i := range allowedOrigins {
+		allowedOrigins[i] = strings.TrimSpace(allowedOrigins[i])
+	}
+	r.Use(cors.New(cors.Config{
+		AllowOrigins: allowedOrigins,
+		AllowMethods: []string{"GET", "POST", "PATCH", "OPTIONS"},
+		AllowHeaders: []string{"Origin", "Content-Type"},
+		MaxAge:       12 * time.Hour,
+	}))
 	router.RegisterHealthRoute(r)
+	router.RegisterAuthRoutes(r, authHTTPHandler)
 	router.RegisterUserRoutes(r, userHTTPHandler)
 	router.RegisterWalletRoutes(r, walletHTTPHandler)
 

@@ -49,7 +49,7 @@ type paymentGatewayStub struct {
 	status         *entity.PaymentStatus
 }
 
-func (p paymentGatewayStub) CreateSnapTransaction(string, int64) (string, string, error) {
+func (p paymentGatewayStub) CreateSnapTransaction(string, int64, string) (string, string, error) {
 	return "snap-token", "https://sandbox.example/checkout", nil
 }
 
@@ -65,7 +65,7 @@ func TestCreateTopUpPersistsPendingOrderAndReturnsSnapDetails(t *testing.T) {
 	repository := &repositoryStub{}
 	usecase := NewUsecase(repository, paymentGatewayStub{})
 
-	result, err := usecase.CreateTopUp(7, 25000)
+	result, err := usecase.CreateTopUp(7, 25000, "qris")
 	if err != nil {
 		t.Fatalf("CreateTopUp returned an error: %v", err)
 	}
@@ -80,6 +80,15 @@ func TestCreateTopUpPersistsPendingOrderAndReturnsSnapDetails(t *testing.T) {
 	}
 	if result.OrderID == "" {
 		t.Error("expected a generated order ID")
+	}
+}
+
+func TestCreateTopUpRejectsUnsupportedPaymentMethod(t *testing.T) {
+	usecase := NewUsecase(&repositoryStub{}, paymentGatewayStub{})
+
+	_, err := usecase.CreateTopUp(7, 25000, "unknown")
+	if !errors.Is(err, ErrInvalidPaymentMethod) {
+		t.Fatalf("expected ErrInvalidPaymentMethod, got %v", err)
 	}
 }
 
