@@ -3,6 +3,7 @@ package router
 import (
 	"net/http"
 
+	authhandler "e-wallet/internal/handler/auth"
 	userhandler "e-wallet/internal/handler/user"
 	wallethandler "e-wallet/internal/handler/wallet"
 
@@ -21,6 +22,10 @@ func RegisterUserRoutes(r *gin.Engine, handler *userhandler.Handler) {
 	group.GET("/", handler.GetAll)
 	group.GET("/:id", handler.GetByID)
 	group.PATCH("/:id/hide", handler.HideByID)
+}
+
+func RegisterAuthRoutes(r *gin.Engine, handler *authhandler.Handler) {
+	r.POST("/auth/login", handler.Login)
 }
 
 func RegisterWalletRoutes(r *gin.Engine, handler *wallethandler.Handler) {

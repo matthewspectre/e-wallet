@@ -33,7 +33,7 @@ func NewClient(serverKey string) *Client {
 	}
 }
 
-func (c *Client) CreateSnapTransaction(orderID string, amount int64) (string, string, error) {
+func (c *Client) CreateSnapTransaction(orderID string, amount int64, paymentMethod string) (string, string, error) {
 	if c.serverKey == "" {
 		return "", "", fmt.Errorf("MIDTRANS_SERVER_KEY is not configured")
 	}
@@ -44,13 +44,33 @@ func (c *Client) CreateSnapTransaction(orderID string, amount int64) (string, st
 		Price: amount,
 		Qty:   1,
 	}}
-	response, apiErr := c.snap.CreateTransaction(&snap.Request{
+	request := &snap.Request{
 		TransactionDetails: midtransSDK.TransactionDetails{
 			OrderID:  orderID,
 			GrossAmt: amount,
 		},
 		Items: &items,
-	})
+	}
+	switch paymentMethod {
+	case "qris":
+		request.EnabledPayments = []snap.SnapPaymentType{
+			"qris",
+			snap.PaymentTypeGopay,
+			snap.PaymentTypeShopeepay,
+		}
+	case "virtual_account":
+		request.EnabledPayments = []snap.SnapPaymentType{
+			snap.PaymentTypeBankTransfer,
+			snap.PaymentTypeBCAVA,
+			snap.PaymentTypeBNIVA,
+			snap.PaymentTypeBRIVA,
+			snap.PaymentTypePermataVA,
+			snap.PaymentTypeOtherVA,
+		}
+	case "credit_card":
+		request.EnabledPayments = []snap.SnapPaymentType{snap.PaymentTypeCreditCard}
+	}
+	response, apiErr := c.snap.CreateTransaction(request)
 	if apiErr != nil {
 		return "", "", fmt.Errorf("create Midtrans Snap transaction: %w", apiErr)
 	}

@@ -14,20 +14,21 @@ import (
 )
 
 var (
-	ErrInvalidNotification = errors.New("invalid Midtrans notification")
-	ErrInvalidTopUpAmount  = errors.New("top-up amount must be greater than zero")
-	ErrUnexpectedPayment   = errors.New("Midtrans transaction does not match top-up")
+	ErrInvalidNotification  = errors.New("invalid Midtrans notification")
+	ErrInvalidTopUpAmount   = errors.New("top-up amount must be greater than zero")
+	ErrInvalidPaymentMethod = errors.New("unsupported top-up payment method")
+	ErrUnexpectedPayment    = errors.New("Midtrans transaction does not match top-up")
 )
 
 type PaymentGateway interface {
-	CreateSnapTransaction(orderID string, amount int64) (token, redirectURL string, err error)
+	CreateSnapTransaction(orderID string, amount int64, paymentMethod string) (token, redirectURL string, err error)
 	VerifyNotification(orderID, statusCode, grossAmount, signature string) bool
 	GetTransactionStatus(orderID string) (*entity.PaymentStatus, error)
 }
 
 type Usecase interface {
 	GetByUserID(userID int64) (*entity.Wallet, error)
-	CreateTopUp(userID, amount int64) (*entity.TopUp, error)
+	CreateTopUp(userID, amount int64, paymentMethod string) (*entity.TopUp, error)
 	HandleNotification(orderID, statusCode, grossAmount, signature string) error
 }
 
@@ -44,12 +45,18 @@ func (u *usecase) GetByUserID(userID int64) (*entity.Wallet, error) {
 	return u.repo.GetByUserID(userID)
 }
 
-func (u *usecase) CreateTopUp(userID, amount int64) (*entity.TopUp, error) {
+func (u *usecase) CreateTopUp(userID, amount int64, paymentMethod string) (*entity.TopUp, error) {
 	if userID <= 0 {
 		return nil, fmt.Errorf("user ID must be positive")
 	}
 	if amount <= 0 {
 		return nil, ErrInvalidTopUpAmount
+	}
+	if paymentMethod != "" &&
+		paymentMethod != "qris" &&
+		paymentMethod != "virtual_account" &&
+		paymentMethod != "credit_card" {
+		return nil, ErrInvalidPaymentMethod
 	}
 	if u.payment == nil {
 		return nil, fmt.Errorf("Midtrans payment gateway is not configured")
@@ -72,7 +79,7 @@ func (u *usecase) CreateTopUp(userID, amount int64) (*entity.TopUp, error) {
 		return nil, err
 	}
 
-	token, redirectURL, err := u.payment.CreateSnapTransaction(orderID, amount)
+	token, redirectURL, err := u.payment.CreateSnapTransaction(orderID, amount, paymentMethod)
 	if err != nil {
 		if updateErr := u.repo.ApplyTopUpStatus(orderID, "failed", ""); updateErr != nil {
 			return nil, fmt.Errorf("create Midtrans transaction: %w (also failed to mark top-up failed: %v)", err, updateErr)

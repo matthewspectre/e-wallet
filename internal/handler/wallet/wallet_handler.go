@@ -54,13 +54,17 @@ func (h *Handler) CreateTopUp(c *gin.Context) {
 		return
 	}
 
-	topUp, err := h.uc.CreateTopUp(userID, req.Amount)
+	topUp, err := h.uc.CreateTopUp(userID, req.Amount, req.PaymentMethod)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "wallet not found"})
 			return
 		}
 		if errors.Is(err, usecase.ErrInvalidTopUpAmount) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if errors.Is(err, usecase.ErrInvalidPaymentMethod) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
