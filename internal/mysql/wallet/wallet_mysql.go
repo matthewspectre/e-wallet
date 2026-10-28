@@ -50,6 +50,17 @@ func (r *RepositoryMySQL) GetTopUpsByUserID(userID int64) ([]*entity.TopUp, erro
 		UpdatedAt   time.Time `gorm:"column:updated_at"`
 	}
 
+	expiredBefore := time.Now().Add(-entity.TopUpPaymentExpiry)
+	if err := r.db.Model(&model.TopUpModel{}).
+		Where("status = ? AND created_at <= ? AND wallet_id IN (?)", "pending", expiredBefore,
+			r.db.Table("wallets").Select("id").Where("user_id = ?", userID)).
+		Updates(map[string]interface{}{
+			"status":     "expired",
+			"updated_at": gorm.Expr("CURRENT_TIMESTAMP"),
+		}).Error; err != nil {
+		return nil, err
+	}
+
 	var rows []topUpWithUserID
 	err := r.db.Table("wallet_topups AS wt").
 		Select("wt.id, w.user_id, wt.wallet_id, wt.order_id, wt.amount, wt.status, wt.snap_token, wt.redirect_url, wt.payment_type, wt.created_at, wt.updated_at").

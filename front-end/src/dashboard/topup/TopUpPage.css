@@ -483,8 +483,127 @@
   text-align: center;
 }
 
+.topup-history-error {
+  color: #b7323d;
+}
+
+.topup-history-list {
+  margin: 11px 0 0;
+  padding: 0;
+  border-top: 1px solid #edf1ef;
+  list-style: none;
+}
+
+.topup-history-item {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+}
+
+.topup-history-item + .topup-history-item {
+  border-top: 1px solid #f0f3f1;
+}
+
+.topup-history-open {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+}
+
+.topup-history-open:hover .topup-history-details strong {
+  color: #08795a;
+}
+
+.topup-history-open:focus-visible {
+  border-radius: 6px;
+  outline: 2px solid #13ae78;
+  outline-offset: 3px;
+}
+
+.topup-history-icon {
+  display: grid;
+  width: 29px;
+  height: 29px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 9px;
+  color: #08795a;
+  background: #f0f7f4;
+}
+
+.topup-history-icon svg {
+  width: 17px;
+  height: 17px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.topup-history-details {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.topup-history-details strong {
+  overflow: hidden;
+  color: #29463d;
+  font-size: 10px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topup-history-details small {
+  color: #87958f;
+  font-size: 8px;
+  white-space: nowrap;
+}
+
+.topup-history-status {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border-radius: 6px;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.topup-history-status.success {
+  color: #087c58;
+  background: #dcf6e9;
+}
+
+.topup-history-status.pending {
+  color: #9b6900;
+  background: #fff2cf;
+}
+
+.topup-history-status.failed {
+  color: #c43b43;
+  background: #ffebeb;
+}
+
+.topup-history-arrow {
+  flex: 0 0 auto;
+  color: #9aaca4;
+  font-size: 20px;
+  line-height: 1;
+}
+
 .topup-history-note {
-  margin: 0;
+  margin: 10px 0 0;
   color: #9aa7a1;
   font-size: 9px;
   line-height: 1.5;

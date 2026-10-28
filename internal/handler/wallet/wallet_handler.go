@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	entity "e-wallet/internal/entity/wallet"
@@ -57,6 +58,11 @@ func (h *Handler) GetTopUpsByUserID(c *gin.Context) {
 
 	responses := make([]TopUpListItemResponse, 0, len(topUps))
 	for _, topUp := range topUps {
+		redirectURL := topUp.RedirectURL
+		if redirectURL == "" && topUp.SnapToken != "" {
+			redirectURL = "https://app.sandbox.midtrans.com/snap/v2/vtweb/" + url.PathEscape(topUp.SnapToken)
+		}
+
 		responses = append(responses, TopUpListItemResponse{
 			ID:          topUp.ID,
 			UserID:      topUp.UserID,
@@ -66,6 +72,7 @@ func (h *Handler) GetTopUpsByUserID(c *gin.Context) {
 			Currency:    "IDR",
 			Status:      topUp.Status,
 			PaymentType: topUp.PaymentType,
+			RedirectURL: redirectURL,
 			CreatedAt:   topUp.CreatedAt,
 			UpdatedAt:   topUp.UpdatedAt,
 		})

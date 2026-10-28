@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"strings"
 	"time"
@@ -43,6 +44,13 @@ func NewUsecase(r repo.Repository, payment PaymentGateway) Usecase {
 }
 
 func (u *usecase) GetByUserID(userID int64) (*entity.Wallet, error) {
+	topUps, err := u.repo.GetTopUpsByUserID(userID)
+	if err != nil {
+		return nil, err
+	}
+	if err := u.refreshRecentTopUps(topUps); err != nil {
+		return nil, err
+	}
 	return u.repo.GetByUserID(userID)
 }
 
@@ -50,7 +58,60 @@ func (u *usecase) GetTopUpsByUserID(userID int64) ([]*entity.TopUp, error) {
 	if userID <= 0 {
 		return nil, fmt.Errorf("user ID must be positive")
 	}
-	return u.repo.GetTopUpsByUserID(userID)
+	topUps, err := u.repo.GetTopUpsByUserID(userID)
+	if err != nil {
+		return nil, err
+	}
+	if err := u.refreshRecentTopUps(topUps); err != nil {
+		return nil, err
+	}
+	return topUps, nil
+}
+
+func (u *usecase) refreshRecentTopUps(topUps []*entity.TopUp) error {
+	if u.payment == nil {
+		return nil
+	}
+
+	for i, topUp := range topUps {
+		if i == 4 {
+			break
+		}
+		if topUp == nil {
+			continue
+		}
+		if topUp.Status != "pending" && topUp.Status != "expired" {
+			continue
+		}
+		if topUp.Status == "expired" && time.Since(topUp.CreatedAt) > 24*time.Hour {
+			continue
+		}
+
+		status, err := u.payment.GetTransactionStatus(topUp.OrderID)
+		if err != nil {
+			log.Printf("failed to refresh Midtrans status for order %s: %v", topUp.OrderID, err)
+			continue
+		}
+		if status == nil ||
+			status.OrderID != topUp.OrderID ||
+			status.Currency != "IDR" ||
+			!amountMatches(status.GrossAmount, topUp.Amount) {
+			log.Printf("ignored mismatched Midtrans status for order %s", topUp.OrderID)
+			continue
+		}
+
+		localStatus, err := mapPaymentStatus(status.TransactionStatus, status.FraudStatus)
+		if err != nil {
+			log.Printf("unsupported Midtrans status for order %s: %v", topUp.OrderID, err)
+			continue
+		}
+		if err := u.repo.ApplyTopUpStatus(topUp.OrderID, localStatus, status.PaymentType); err != nil {
+			return fmt.Errorf("apply refreshed payment status for order %s: %w", topUp.OrderID, err)
+		}
+		topUp.Status = localStatus
+		topUp.PaymentType = status.PaymentType
+	}
+	return nil
 }
 
 func (u *usecase) CreateTopUp(userID, amount int64, paymentMethod string) (*entity.TopUp, error) {
