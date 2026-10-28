@@ -10,6 +10,7 @@ import (
 type repositoryStub struct {
 	topUp            *entity.TopUp
 	topUps           []*entity.TopUp
+	wallet           *entity.Wallet
 	appliedStatus    string
 	appliedPayment   string
 	getTopUpCalled   bool
@@ -17,7 +18,7 @@ type repositoryStub struct {
 }
 
 func (r *repositoryStub) GetByUserID(int64) (*entity.Wallet, error) {
-	return nil, nil
+	return r.wallet, nil
 }
 
 func (r *repositoryStub) GetTopUpsByUserID(int64) ([]*entity.TopUp, error) {
@@ -118,6 +119,39 @@ func TestGetTopUpsByUserIDRejectsNonPositiveID(t *testing.T) {
 
 	if _, err := usecase.GetTopUpsByUserID(0); err == nil {
 		t.Fatal("expected non-positive user ID to be rejected")
+	}
+}
+
+func TestGetByUserIDRefreshesPendingPaymentBeforeReturningWallet(t *testing.T) {
+	repository := &repositoryStub{
+		wallet: &entity.Wallet{UserID: 7, Balance: 25000},
+		topUps: []*entity.TopUp{{
+			UserID:  7,
+			OrderID: "order-1",
+			Amount:  25000,
+			Status:  "pending",
+		}},
+	}
+	gateway := paymentGatewayStub{
+		status: &entity.PaymentStatus{
+			OrderID:           "order-1",
+			GrossAmount:       "25000.00",
+			Currency:          "IDR",
+			TransactionStatus: "settlement",
+			PaymentType:       "qris",
+		},
+	}
+	usecase := NewUsecase(repository, gateway)
+
+	wallet, err := usecase.GetByUserID(7)
+	if err != nil {
+		t.Fatalf("GetByUserID returned an error: %v", err)
+	}
+	if wallet != repository.wallet {
+		t.Fatal("expected wallet to be returned")
+	}
+	if repository.appliedStatus != "paid" || repository.appliedPayment != "qris" {
+		t.Fatalf("expected settled payment to be applied, got status=%q payment=%q", repository.appliedStatus, repository.appliedPayment)
 	}
 }
 

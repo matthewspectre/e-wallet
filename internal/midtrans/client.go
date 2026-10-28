@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
+	"time"
 
 	entity "e-wallet/internal/entity/wallet"
 	midtransSDK "github.com/midtrans/midtrans-go"
@@ -49,7 +50,8 @@ func (c *Client) CreateSnapTransaction(orderID string, amount int64, paymentMeth
 			OrderID:  orderID,
 			GrossAmt: amount,
 		},
-		Items: &items,
+		Items:  &items,
+		Expiry: &snap.ExpiryDetails{Unit: "minute", Duration: int64(entity.TopUpPaymentExpiry / time.Minute)},
 	}
 	switch paymentMethod {
 	case "qris":

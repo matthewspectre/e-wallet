@@ -16,6 +16,22 @@ type Wallet = {
   currency: string
 }
 
+type TopUpHistoryItem = {
+  id: number
+  user_id: number
+  amount: number
+  currency: string
+  status: string
+  payment_type: string
+  redirect_url?: string
+  created_at: string
+}
+
+type TopUpHistoryResponse = {
+  data: TopUpHistoryItem[]
+  total: number
+}
+
 type TopUpResponse = {
   redirect_url: string
 }
@@ -58,6 +74,68 @@ function formatRupiah(amount: number, currency = 'IDR') {
   }).format(amount)
 }
 
+function formatTransactionDate(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Tanggal tidak tersedia'
+
+  const formattedDate = new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date)
+  const formattedTime = new Intl.DateTimeFormat('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(date)
+
+  return `${formattedDate}, ${formattedTime}`
+}
+
+function getStatusDisplay(status: string) {
+  switch (status.toLowerCase()) {
+    case 'paid':
+    case 'settlement':
+    case 'capture':
+      return { label: 'Berhasil', className: 'success' }
+    case 'pending':
+      return { label: 'Diproses', className: 'pending' }
+    case 'expired':
+    case 'expire':
+    case 'cancelled':
+    case 'cancel':
+    case 'failed':
+    case 'failure':
+      return { label: 'Gagal', className: 'failed' }
+    default:
+      return { label: status || 'Tidak diketahui', className: 'pending' }
+  }
+}
+
+function HistoryPaymentIcon({ paymentType }: { paymentType: string }) {
+  if (paymentType.toLowerCase().includes('bank') || paymentType.toLowerCase().includes('va')) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m3 9 9-6 9 6H3Zm2 2v7m5-7v7m4-7v7m5-7v7M3 21h18M2 18h20" />
+      </svg>
+    )
+  }
+  if (paymentType.toLowerCase().includes('card')) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="2.5" y="5" width="19" height="14" rx="2" />
+        <path d="M3 9h18M6 15h4" />
+      </svg>
+    )
+  }
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3z" />
+      <path d="M14 14h3v3h-3zm5 0h2m-7 5h3m2-2v4m-5-1h2" />
+    </svg>
+  )
+}
+
 function PaymentMethodIcon({ icon }: { icon: 'qris' | 'bank' | 'card' }) {
   if (icon === 'qris') {
     return (
@@ -88,6 +166,10 @@ function TopUpPage() {
   const user = (location.state as TopUpLocationState | null)?.user
   const userId = user?.id
   const [wallet, setWallet] = useState<Wallet | null>(null)
+  const [topUps, setTopUps] = useState<TopUpHistoryItem[]>([])
+  const [historyLoading, setHistoryLoading] = useState(true)
+  const [historyError, setHistoryError] = useState('')
+  const [historyActionError, setHistoryActionError] = useState('')
   const [amount, setAmount] = useState(25000)
   const [customAmount, setCustomAmount] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('qris')
@@ -112,7 +194,31 @@ function TopUpPage() {
       }
     }
 
+    async function loadTopUpHistory() {
+      setHistoryLoading(true)
+      setHistoryError('')
+      try {
+        const response = await fetch(`${apiBaseUrl}/wallets/user/${userId}/topups`, {
+          signal: controller.signal,
+        })
+        const data: TopUpHistoryResponse | { error?: string } = await response.json()
+        if (!response.ok) {
+          throw new Error('error' in data && data.error ? data.error : 'Riwayat top up belum dapat dimuat.')
+        }
+        if (!('data' in data) || !Array.isArray(data.data)) {
+          throw new Error('Format riwayat top up dari server tidak valid.')
+        }
+        setTopUps(data.data.slice(0, 4))
+      } catch (requestError) {
+        if (controller.signal.aborted) return
+        setHistoryError(requestError instanceof Error ? requestError.message : 'Riwayat top up belum dapat dimuat.')
+      } finally {
+        if (!controller.signal.aborted) setHistoryLoading(false)
+      }
+    }
+
     void loadWallet()
+    void loadTopUpHistory()
     return () => controller.abort()
   }, [userId])
 
@@ -127,6 +233,36 @@ function TopUpPage() {
     setAmount(value)
     setCustomAmount('')
     setError('')
+  }
+
+  function openPendingPayment(redirectUrl: string) {
+    setHistoryActionError('')
+    if (!redirectUrl) {
+      setHistoryActionError('Link pembayaran tidak tersedia. Muat ulang riwayat atau buat transaksi top up baru.')
+      return
+    }
+
+    let paymentUrl: URL
+    try {
+      paymentUrl = new URL(redirectUrl)
+    } catch {
+      setHistoryActionError('URL pembayaran tidak valid.')
+      return
+    }
+
+    const midtransHosts = ['app.midtrans.com', 'app.sandbox.midtrans.com']
+    if (paymentUrl.protocol !== 'https:' || !midtransHosts.includes(paymentUrl.hostname)) {
+      setHistoryActionError('URL pembayaran Midtrans tidak valid.')
+      return
+    }
+
+    const paymentWindow = window.open('about:blank', '_blank')
+    if (!paymentWindow) {
+      setHistoryActionError('Tab pembayaran diblokir browser. Izinkan pop-up untuk situs ini lalu coba lagi.')
+      return
+    }
+    paymentWindow.opener = null
+    paymentWindow.location.replace(paymentUrl.toString())
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -322,9 +458,51 @@ function TopUpPage() {
               <div className="topup-history-heading">
                 <h2>Riwayat Top Up Terakhir</h2>
               </div>
-              <div className="topup-history-empty">
-                Riwayat transaksi belum tersedia.
-              </div>
+              {historyLoading ? (
+                <div className="topup-history-empty">Memuat riwayat transaksi...</div>
+              ) : historyError ? (
+                <div className="topup-history-empty topup-history-error" role="alert">{historyError}</div>
+              ) : topUps.length === 0 ? (
+                <div className="topup-history-empty">Riwayat transaksi belum tersedia.</div>
+              ) : (
+                <ul className="topup-history-list">
+                  {topUps.map((topUp) => {
+                    const status = getStatusDisplay(topUp.status)
+                    const isPending = topUp.status.toLowerCase() === 'pending'
+                    return (
+                      <li className="topup-history-item" key={topUp.id}>
+                        {isPending ? (
+                          <button
+                            className="topup-history-open"
+                            type="button"
+                            aria-label={`Lanjutkan pembayaran top up ${formatRupiah(topUp.amount, topUp.currency || 'IDR')}`}
+                            onClick={() => openPendingPayment(topUp.redirect_url ?? '')}
+                          >
+                            <span className="topup-history-icon"><HistoryPaymentIcon paymentType={topUp.payment_type} /></span>
+                            <span className="topup-history-details">
+                              <strong>{formatRupiah(topUp.amount, topUp.currency || 'IDR')}</strong>
+                              <small>{formatTransactionDate(topUp.created_at)}</small>
+                            </span>
+                            <span className={`topup-history-status ${status.className}`}>{status.label}</span>
+                            <span className="topup-history-arrow" aria-hidden="true">›</span>
+                          </button>
+                        ) : (
+                          <>
+                            <span className="topup-history-icon"><HistoryPaymentIcon paymentType={topUp.payment_type} /></span>
+                            <span className="topup-history-details">
+                              <strong>{formatRupiah(topUp.amount, topUp.currency || 'IDR')}</strong>
+                              <small>{formatTransactionDate(topUp.created_at)}</small>
+                            </span>
+                            <span className={`topup-history-status ${status.className}`}>{status.label}</span>
+                            <span className="topup-history-arrow" aria-hidden="true">›</span>
+                          </>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+              {historyActionError && <p className="topup-history-error" role="alert">{historyActionError}</p>}
               <p className="topup-history-note">Status pembayaran akan diperbarui setelah Midtrans mengirim notifikasi.</p>
             </section>
           </aside>

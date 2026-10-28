@@ -37,6 +37,7 @@ type TopUpListItemResponse struct {
 	Currency    string    `json:"currency"`
 	Status      string    `json:"status"`
 	PaymentType string    `json:"payment_type"`
+	RedirectURL string    `json:"redirect_url,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }

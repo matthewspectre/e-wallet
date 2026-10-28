@@ -2,6 +2,8 @@ package wallet
 
 import "time"
 
+const TopUpPaymentExpiry = 15 * time.Minute
+
 type TopUp struct {
 	ID          int64
 	UserID      int64
