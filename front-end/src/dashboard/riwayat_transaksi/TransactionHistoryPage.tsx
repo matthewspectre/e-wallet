@@ -76,6 +76,11 @@ function TransactionHistoryPage() {
   const user = (location.state as LocationState | null)?.user
   const userId = user?.id
   const [transactions, setTransactions] = useState<HistoryItem[]>([])
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [appliedStartDate, setAppliedStartDate] = useState('')
+  const [appliedEndDate, setAppliedEndDate] = useState('')
+  const [filterError, setFilterError] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -84,8 +89,15 @@ function TransactionHistoryPage() {
     const controller = new AbortController()
 
     async function loadTransactions() {
+      setLoading(true)
+      setError('')
       try {
-        const response = await fetch(`${apiBaseUrl}/wallets/user/${userId}/topups`, {
+        const query = new URLSearchParams()
+        if (appliedStartDate) query.set('startdate', appliedStartDate)
+        if (appliedEndDate) query.set('enddate', appliedEndDate)
+        const queryString = query.toString()
+        const endpoint = `${apiBaseUrl}/wallets/user/${userId}/topups${queryString ? `?${queryString}` : ''}`
+        const response = await fetch(endpoint, {
           signal: controller.signal,
         })
         const data: HistoryResponse | { error?: string } = await response.json()
@@ -111,10 +123,28 @@ function TransactionHistoryPage() {
 
     void loadTransactions()
     return () => controller.abort()
-  }, [userId])
+  }, [userId, appliedStartDate, appliedEndDate])
 
   if (!user) {
     return <Navigate to="/login" replace />
+  }
+
+  function applyDateFilter() {
+    if (startDate && endDate && startDate > endDate) {
+      setFilterError('Tanggal mulai tidak boleh melewati tanggal akhir.')
+      return
+    }
+    setFilterError('')
+    setAppliedStartDate(startDate)
+    setAppliedEndDate(endDate)
+  }
+
+  function clearDateFilter() {
+    setStartDate('')
+    setEndDate('')
+    setAppliedStartDate('')
+    setAppliedEndDate('')
+    setFilterError('')
   }
 
   return (
@@ -143,6 +173,42 @@ function TransactionHistoryPage() {
             <h1>Riwayat Transaksi</h1>
             <p>Lihat status dan detail transaksi top up akun GoWallet kamu.</p>
           </div>
+
+          <section className="history-filter" aria-label="Filter tanggal transaksi">
+            <label>
+              <span>Tanggal mulai</span>
+              <input
+                type="date"
+                value={startDate}
+                max={endDate || undefined}
+                onChange={(event) => {
+                  setStartDate(event.target.value)
+                  setFilterError('')
+                }}
+              />
+            </label>
+            <label>
+              <span>Tanggal akhir</span>
+              <input
+                type="date"
+                value={endDate}
+                min={startDate || undefined}
+                onChange={(event) => {
+                  setEndDate(event.target.value)
+                  setFilterError('')
+                }}
+              />
+            </label>
+            <div className="history-filter-actions">
+              <button className="history-filter-apply" type="button" onClick={applyDateFilter}>
+                Terapkan
+              </button>
+              <button className="history-filter-clear" type="button" onClick={clearDateFilter}>
+                Reset
+              </button>
+            </div>
+            {filterError && <p className="history-filter-error" role="alert">{filterError}</p>}
+          </section>
 
           <section className="history-card" aria-label="Daftar riwayat transaksi">
             {loading ? (
