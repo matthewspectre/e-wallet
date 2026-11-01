@@ -10,14 +10,14 @@ type MenuIconName = 'dashboard' | 'topup' | 'transfer' | 'history' | 'settings'
 
 type DashboardSidebarProps = {
   user: User
-  activePage: 'dashboard' | 'topup'
+  activePage: 'dashboard' | 'topup' | 'history'
 }
 
-const menuItems: { label: string; icon: MenuIconName; page?: 'dashboard' | 'topup' }[] = [
+const menuItems: { label: string; icon: MenuIconName; page?: 'dashboard' | 'topup' | 'history' }[] = [
   { label: 'Dashboard', icon: 'dashboard', page: 'dashboard' },
   { label: 'Top Up', icon: 'topup', page: 'topup' },
   { label: 'Transfer', icon: 'transfer' },
-  { label: 'Riwayat Transaksi', icon: 'history' },
+  { label: 'Riwayat Transaksi', icon: 'history', page: 'history' },
   { label: 'Pengaturan', icon: 'settings' },
 ]
 
@@ -67,7 +67,11 @@ function DashboardSidebar({ user, activePage }: DashboardSidebarProps) {
       <nav className="sidebar-nav">
         {menuItems.map((item) => {
           const active = item.page === activePage
-          const target = item.page === 'topup' ? '/dashboard/topup' : '/dashboard'
+          const target = item.page === 'topup'
+            ? '/dashboard/topup'
+            : item.page === 'history'
+              ? '/dashboard/riwayat-transaksi'
+              : '/dashboard'
           return (
             <button
               className={`sidebar-nav-item${active ? ' active' : ''}`}

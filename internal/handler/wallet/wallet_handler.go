@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	entity "e-wallet/internal/entity/wallet"
 	usecase "e-wallet/internal/usecase/wallet"
@@ -49,7 +50,22 @@ func (h *Handler) GetTopUpsByUserID(c *gin.Context) {
 		return
 	}
 
-	topUps, err := h.uc.GetTopUpsByUserID(userID)
+	startDate, err := parseDateQuery(c.Query("startdate"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "startdate must use YYYY-MM-DD format"})
+		return
+	}
+	endDate, err := parseDateQuery(c.Query("enddate"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "enddate must use YYYY-MM-DD format"})
+		return
+	}
+	if startDate != nil && endDate != nil && startDate.After(*endDate) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "startdate must be before or equal to enddate"})
+		return
+	}
+
+	topUps, err := h.uc.GetTopUpsByUserID(userID, startDate, endDate)
 	if err != nil {
 		log.Printf("failed to get top-ups for user %d: %v", userID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not get top-up history"})
@@ -82,6 +98,17 @@ func (h *Handler) GetTopUpsByUserID(c *gin.Context) {
 		"data":  responses,
 		"total": len(responses),
 	})
+}
+
+func parseDateQuery(value string) (*time.Time, error) {
+	if value == "" {
+		return nil, nil
+	}
+	date, err := time.Parse("2006-01-02", value)
+	if err != nil {
+		return nil, err
+	}
+	return &date, nil
 }
 
 func (h *Handler) CreateTopUp(c *gin.Context) {

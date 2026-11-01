@@ -35,7 +35,7 @@ func (r *RepositoryMySQL) GetByUserID(userID int64) (*entity.Wallet, error) {
 	}, nil
 }
 
-func (r *RepositoryMySQL) GetTopUpsByUserID(userID int64) ([]*entity.TopUp, error) {
+func (r *RepositoryMySQL) GetTopUpsByUserID(userID int64, startDate, endDate *time.Time) ([]*entity.TopUp, error) {
 	type topUpWithUserID struct {
 		ID          int64     `gorm:"column:id"`
 		UserID      int64     `gorm:"column:user_id"`
@@ -61,13 +61,20 @@ func (r *RepositoryMySQL) GetTopUpsByUserID(userID int64) ([]*entity.TopUp, erro
 		return nil, err
 	}
 
-	var rows []topUpWithUserID
-	err := r.db.Table("wallet_topups AS wt").
+	query := r.db.Table("wallet_topups AS wt").
 		Select("wt.id, w.user_id, wt.wallet_id, wt.order_id, wt.amount, wt.status, wt.snap_token, wt.redirect_url, wt.payment_type, wt.created_at, wt.updated_at").
 		Joins("JOIN wallets AS w ON w.id = wt.wallet_id").
 		Where("w.user_id = ?", userID).
-		Order("wt.created_at DESC, wt.id DESC").
-		Scan(&rows).Error
+		Order("wt.created_at DESC, wt.id DESC")
+	if startDate != nil {
+		query = query.Where("wt.created_at >= ?", startDate.Format("2006-01-02")+" 00:00:00")
+	}
+	if endDate != nil {
+		query = query.Where("wt.created_at < ?", endDate.AddDate(0, 0, 1).Format("2006-01-02")+" 00:00:00")
+	}
+
+	var rows []topUpWithUserID
+	err := query.Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}

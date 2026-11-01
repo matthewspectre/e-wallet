@@ -3,6 +3,7 @@ package wallet
 import (
 	"errors"
 	"testing"
+	"time"
 
 	entity "e-wallet/internal/entity/wallet"
 )
@@ -11,6 +12,8 @@ type repositoryStub struct {
 	topUp            *entity.TopUp
 	topUps           []*entity.TopUp
 	wallet           *entity.Wallet
+	startDate        *time.Time
+	endDate          *time.Time
 	appliedStatus    string
 	appliedPayment   string
 	getTopUpCalled   bool
@@ -21,7 +24,9 @@ func (r *repositoryStub) GetByUserID(int64) (*entity.Wallet, error) {
 	return r.wallet, nil
 }
 
-func (r *repositoryStub) GetTopUpsByUserID(int64) ([]*entity.TopUp, error) {
+func (r *repositoryStub) GetTopUpsByUserID(_ int64, startDate, endDate *time.Time) ([]*entity.TopUp, error) {
+	r.startDate = startDate
+	r.endDate = endDate
 	return r.topUps, nil
 }
 
@@ -105,7 +110,7 @@ func TestGetTopUpsByUserIDReturnsRepositoryResults(t *testing.T) {
 	want := []*entity.TopUp{{ID: 1, UserID: 7, OrderID: "order-1"}}
 	usecase := NewUsecase(&repositoryStub{topUps: want}, paymentGatewayStub{})
 
-	got, err := usecase.GetTopUpsByUserID(7)
+	got, err := usecase.GetTopUpsByUserID(7, nil, nil)
 	if err != nil {
 		t.Fatalf("GetTopUpsByUserID returned an error: %v", err)
 	}
@@ -117,8 +122,35 @@ func TestGetTopUpsByUserIDReturnsRepositoryResults(t *testing.T) {
 func TestGetTopUpsByUserIDRejectsNonPositiveID(t *testing.T) {
 	usecase := NewUsecase(&repositoryStub{}, paymentGatewayStub{})
 
-	if _, err := usecase.GetTopUpsByUserID(0); err == nil {
+	if _, err := usecase.GetTopUpsByUserID(0, nil, nil); err == nil {
 		t.Fatal("expected non-positive user ID to be rejected")
+	}
+}
+
+func TestGetTopUpsByUserIDPassesDateFiltersToRepository(t *testing.T) {
+	startDate := time.Date(2026, time.November, 1, 0, 0, 0, 0, time.UTC)
+	endDate := time.Date(2026, time.November, 5, 0, 0, 0, 0, time.UTC)
+	repository := &repositoryStub{}
+	usecase := NewUsecase(repository, paymentGatewayStub{})
+
+	if _, err := usecase.GetTopUpsByUserID(7, &startDate, &endDate); err != nil {
+		t.Fatalf("GetTopUpsByUserID returned an error: %v", err)
+	}
+	if repository.startDate == nil || !repository.startDate.Equal(startDate) {
+		t.Errorf("expected start date %v to reach repository, got %v", startDate, repository.startDate)
+	}
+	if repository.endDate == nil || !repository.endDate.Equal(endDate) {
+		t.Errorf("expected end date %v to reach repository, got %v", endDate, repository.endDate)
+	}
+}
+
+func TestGetTopUpsByUserIDRejectsReversedDateRange(t *testing.T) {
+	startDate := time.Date(2026, time.November, 5, 0, 0, 0, 0, time.UTC)
+	endDate := time.Date(2026, time.November, 1, 0, 0, 0, 0, time.UTC)
+	usecase := NewUsecase(&repositoryStub{}, paymentGatewayStub{})
+
+	if _, err := usecase.GetTopUpsByUserID(7, &startDate, &endDate); err == nil {
+		t.Fatal("expected reversed date range to be rejected")
 	}
 }
 
