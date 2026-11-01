@@ -18,6 +18,19 @@ type Wallet = {
   currency: string
 }
 
+type TopUpHistoryItem = {
+  id: number
+  amount: number
+  currency: string
+  status: string
+  created_at: string
+}
+
+type TopUpHistoryResponse = {
+  data: TopUpHistoryItem[]
+  total: number
+}
+
 type QuickActionName = 'Top Up' | 'Transfer' | 'Riwayat' | 'Lainnya'
 type QuickActionIconName = 'topup' | 'transfer' | 'history' | 'more'
 
@@ -57,6 +70,9 @@ function DashboardPage() {
   const userId = user?.id
   const [wallet, setWallet] = useState<Wallet | null>(null)
   const [walletError, setWalletError] = useState('')
+  const [lastTopUp, setLastTopUp] = useState<TopUpHistoryItem | null>(null)
+  const [topUpError, setTopUpError] = useState('')
+  const [topUpLoading, setTopUpLoading] = useState(true)
   const [isBalanceVisible, setIsBalanceVisible] = useState(true)
   const [actionMessage, setActionMessage] = useState('')
 
@@ -80,7 +96,36 @@ function DashboardPage() {
       }
     }
 
+    async function loadLastTopUp() {
+      try {
+        const response = await fetch(`${apiBaseUrl}/wallets/user/${userId}/topups`, {
+          signal: controller.signal,
+        })
+        const data: TopUpHistoryResponse | { error?: string } = await response.json()
+        if (!response.ok) {
+          throw new Error('error' in data && data.error ? data.error : 'Pemasukan belum dapat dimuat.')
+        }
+        if (!('data' in data) || !Array.isArray(data.data)) {
+          throw new Error('Format riwayat top up dari server tidak valid.')
+        }
+
+        const successfulTopUps = data.data
+          .filter((topUp) => ['paid', 'settlement', 'capture'].includes(topUp.status.toLowerCase()))
+          .sort((a, b) => {
+            const dateDifference = new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            return dateDifference || b.id - a.id
+          })
+        setLastTopUp(successfulTopUps[0] ?? null)
+      } catch (error) {
+        if (controller.signal.aborted) return
+        setTopUpError(error instanceof Error ? error.message : 'Pemasukan belum dapat dimuat.')
+      } finally {
+        if (!controller.signal.aborted) setTopUpLoading(false)
+      }
+    }
+
     void loadWallet()
+    void loadLastTopUp()
     return () => controller.abort()
   }, [userId])
 
@@ -95,6 +140,13 @@ function DashboardPage() {
         maximumFractionDigits: 0,
       }).format(wallet.balance)
     : null
+  const formattedLastTopUp = lastTopUp
+      ? new Intl.NumberFormat('id-ID', {
+          style: 'currency',
+          currency: lastTopUp.currency || 'IDR',
+          maximumFractionDigits: 0,
+        }).format(lastTopUp.amount)
+      : null
 
   return (
     <main className="dashboard-shell">
@@ -158,7 +210,7 @@ function DashboardPage() {
               <span className="transaction-symbol" aria-hidden="true">↗</span>
               <div>
                 <span className="transaction-label">Pemasukan</span>
-                <strong>Belum tersedia</strong>
+                <strong>{topUpLoading ? 'Memuat...' : topUpError || formattedLastTopUp || 'Belum tersedia'}</strong>
               </div>
             </div>
             <div className="transaction-summary expense">
@@ -179,6 +231,10 @@ function DashboardPage() {
                 onClick={() => {
                   if (action.label === 'Top Up') {
                     navigate('/dashboard/topup', { state: { user } })
+                    return
+                  }
+                  if (action.label === 'Riwayat') {
+                    navigate('/dashboard/riwayat-transaksi', { state: { user } })
                     return
                   }
                   setActionMessage(`${action.label} akan segera hadir.`)

@@ -29,7 +29,7 @@ type PaymentGateway interface {
 
 type Usecase interface {
 	GetByUserID(userID int64) (*entity.Wallet, error)
-	GetTopUpsByUserID(userID int64) ([]*entity.TopUp, error)
+	GetTopUpsByUserID(userID int64, startDate, endDate *time.Time) ([]*entity.TopUp, error)
 	CreateTopUp(userID, amount int64, paymentMethod string) (*entity.TopUp, error)
 	HandleNotification(orderID, statusCode, grossAmount, signature string) error
 }
@@ -44,7 +44,7 @@ func NewUsecase(r repo.Repository, payment PaymentGateway) Usecase {
 }
 
 func (u *usecase) GetByUserID(userID int64) (*entity.Wallet, error) {
-	topUps, err := u.repo.GetTopUpsByUserID(userID)
+	topUps, err := u.repo.GetTopUpsByUserID(userID, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -54,11 +54,14 @@ func (u *usecase) GetByUserID(userID int64) (*entity.Wallet, error) {
 	return u.repo.GetByUserID(userID)
 }
 
-func (u *usecase) GetTopUpsByUserID(userID int64) ([]*entity.TopUp, error) {
+func (u *usecase) GetTopUpsByUserID(userID int64, startDate, endDate *time.Time) ([]*entity.TopUp, error) {
 	if userID <= 0 {
 		return nil, fmt.Errorf("user ID must be positive")
 	}
-	topUps, err := u.repo.GetTopUpsByUserID(userID)
+	if startDate != nil && endDate != nil && startDate.After(*endDate) {
+		return nil, fmt.Errorf("start date must not be after end date")
+	}
+	topUps, err := u.repo.GetTopUpsByUserID(userID, startDate, endDate)
 	if err != nil {
 		return nil, err
 	}
